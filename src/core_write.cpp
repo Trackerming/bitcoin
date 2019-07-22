@@ -234,3 +234,9 @@ void TxToUniv(const CTransaction& tx, const uint256& hashBlock, UniValue& entry,
         entry.pushKV("hex", EncodeHexTx(tx, serialize_flags)); // The hex-encoded transaction. Used the name "hex" to be consistent with the verbose output of "getrawtransaction".
     }
 }
+
+void TxToUnivS(const CTransaction &tx, const uint256 &hashBlock, UniValue &entry, bool include_hex, int serialize_flags){
+    if(include_hex){
+        entry.pushKV("hex", EncodeHexTx(tx, serialize_flags));
+    }
+}

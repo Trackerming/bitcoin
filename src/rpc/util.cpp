@@ -66,6 +66,14 @@ void RPCTypeCheckObj(const UniValue& o,
     }
 }
 
+UniValue ValueFromCAmount(const CAmount &amount){
+    bool sign = amount < 0;
+    int64_t n_abs = (sign? -amount:amount);
+    int64_t quotient = n_abs/(COIN/SATOSHI);
+    int64_t remainder = n_abs%(COIN/SATOSHI);
+    return UniValue(UniValue::VNUM, strprintf("%s%d.%08d", sign?"-":"", quotient, remainder));
+}
+
 CAmount AmountFromValue(const UniValue& value)
 {
     if (!value.isNum() && !value.isStr())

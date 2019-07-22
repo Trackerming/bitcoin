@@ -410,6 +410,11 @@ void SetupServerArgs()
     hidden_args.emplace_back("-sysperms");
 #endif
     gArgs.AddArg("-txindex", strprintf("Maintain a full transaction index, used by the getrawtransaction rpc call (default: %u)", DEFAULT_TXINDEX), false, OptionsCategory::OPTIONS);
+
+    gArgs.AddArg("-addressindex", strprintf("get info by using address index"), false, OptionsCategory::OPTIONS);
+    gArgs.AddArg("-spentindex", strprintf("get spent info by using spent index"), false, OptionsCategory::OPTIONS);
+    gArgs.AddArg("-timestampindex", strprintf("using timestampindex"), false, OptionsCategory::OPTIONS);
+
     gArgs.AddArg("-blockfilterindex=<type>",
                  strprintf("Maintain an index of compact filters by block (default: %s, values: %s).", DEFAULT_BLOCKFILTERINDEX, ListBlockFilterTypes()) +
                  " If <type> is not supplied or if <type> = 1, indexes for all known types are enabled.",
@@ -1454,11 +1459,29 @@ bool AppInitMain(InitInterfaces& interfaces)
     fReindex = gArgs.GetBoolArg("-reindex", false);
     bool fReindexChainState = gArgs.GetBoolArg("-reindex-chainstate", false);
 
+    // block tree db setting
+      int dbMaxOpenFiles = gArgs.GetArg("-dbmaxopenfiles", DEFAULT_DB_MAX_OPEN_FILES);
+      bool dbCompression = gArgs.GetBoolArg("-dbcompression", DEFAULT_DB_COMPRESSION);
+
+    LogPrintf("block index database configuration:\n");
+    LogPrintf("* Using %d max open files\n", dbMaxOpenFiles);
+    LogPrintf("*Compression is %s\n", dbCompression ? "enabled" : "disabled");
+
     // cache size calculations
     int64_t nTotalCache = (gArgs.GetArg("-dbcache", nDefaultDbCache) << 20);
     nTotalCache = std::max(nTotalCache, nMinDbCache << 20); // total cache cannot be less than nMinDbCache
     nTotalCache = std::min(nTotalCache, nMaxDbCache << 20); // total cache cannot be greater than nMaxDbcache
     int64_t nBlockTreeDBCache = std::min(nTotalCache / 8, nMaxBlockDBCache << 20);
+
+    if (gArgs.GetBoolArg("-addressindex", DEFAULT_ADDRESSINDEX) || gArgs.GetBoolArg("-spentindex", DEFAULT_SPENTINDEX)) {
+        // enable 3/4 of the cache if addressindex and/or spentindex is enabled
+        nBlockTreeDBCache = nTotalCache * 3 / 4;
+    } else {
+        nBlockTreeDBCache = std::min(nBlockTreeDBCache,
+                                     (gArgs.GetBoolArg("-txindex", DEFAULT_TXINDEX) ? nMaxTxIndexCache : nMaxBlockDBCache)
+                                       << 20);
+    }
+
     nTotalCache -= nBlockTreeDBCache;
     int64_t nTxIndexCache = std::min(nTotalCache / 8, gArgs.GetBoolArg("-txindex", DEFAULT_TXINDEX) ? nMaxTxIndexCache << 20 : 0);
     nTotalCache -= nTxIndexCache;
@@ -1475,6 +1498,9 @@ bool AppInitMain(InitInterfaces& interfaces)
     nCoinCacheUsage = nTotalCache; // the rest goes to in-memory cache
     int64_t nMempoolSizeMax = gArgs.GetArg("-maxmempool", DEFAULT_MAX_MEMPOOL_SIZE) * 1000000;
     LogPrintf("Cache configuration:\n");
+
+    LogPrintf("* Max cache setting possible %.1MiB\n", nMaxDbCache);
+
     LogPrintf("* Using %.1f MiB for block index database\n", nBlockTreeDBCache * (1.0 / 1024 / 1024));
     if (gArgs.GetBoolArg("-txindex", DEFAULT_TXINDEX)) {
         LogPrintf("* Using %.1f MiB for transaction index database\n", nTxIndexCache * (1.0 / 1024 / 1024));
@@ -1530,6 +1556,24 @@ bool AppInitMain(InitInterfaces& interfaces)
                 // (we're likely using a testnet datadir, or the other way around).
                 if (!mapBlockIndex.empty() && !LookupBlockIndex(chainparams.GetConsensus().hashGenesisBlock)) {
                     return InitError(_("Incorrect or no genesis block found. Wrong datadir for network?"));
+                }
+
+                // check for changed -addressindex state
+                if (fAddressIndex != gArgs.GetBoolArg("-addressindex", DEFAULT_ADDRESSINDEX)) {
+                    strLoadError = _("You need to rebuild the database using -reindex-chainstate to change -addressindex");
+                    break;
+                }
+
+                // check for changed -spentindex state
+                if (fSpentIndex != gArgs.GetBoolArg("-spentindex", DEFAULT_SPENTINDEX)) {
+                    strLoadError = _("You need to rebuild the database using -reindex-chainstate to change -spentindex");
+                    break;
+                }
+
+                // check for changed -timestampindex state
+                if (fTimestampIndex != gArgs.GetBoolArg("-timestampindex", DEFAULT_TIMESTAMPINDEX)) {
+                    strLoadError = _("You need to rebuild the database using -reindex-chainstate to change -timestampindex");
+                    break;
                 }
 
                 // Check for changed -prune state.  What we are concerned about is a user who has pruned blocks

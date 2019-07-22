@@ -70,6 +70,37 @@ public:
     std::string operator()(const CNoDestination& no) const { return {}; }
 };
 
+  class DestinationVistor : public boost::static_visitor<std::pair<uint160, int >> {
+  public:
+    explicit DestinationVistor() {}
+
+    std::pair<uint160, int> operator()(const PKHash &id) const {
+        std::pair<uint160, int> result;
+        result = std::make_pair(id, 1);
+        return result;
+    }
+
+    std::pair<uint160, int> operator()(const ScriptHash &id) const {
+        std::pair<uint160, int> result;
+        result = std::make_pair(id, 2);
+        return result;
+    }
+
+    // TODO 其他不支持的类型
+    std::pair<uint160, int> operator()(const WitnessV0KeyHash &id) const{
+        return {};
+    }
+    std::pair<uint160, int> operator()(const WitnessV0ScriptHash &id) const{
+        return {};
+    }
+    std::pair<uint160, int> operator()(const WitnessUnknown &id) const{
+        return {};
+    }
+    std::pair<uint160, int> operator()(const CNoDestination &no) const {
+        return {};
+    }
+  };
+
 CTxDestination DecodeDestination(const std::string& str, const CChainParams& params)
 {
     std::vector<unsigned char> data;
@@ -206,6 +237,10 @@ std::string EncodeExtKey(const CExtKey& key)
     std::string ret = EncodeBase58Check(data);
     memory_cleanse(data.data(), data.size());
     return ret;
+}
+
+std::pair<uint160, int> VisitDestination(const CTxDestination &dest) {
+    return boost::apply_visitor(DestinationVistor(), dest);
 }
 
 std::string EncodeDestination(const CTxDestination& dest)

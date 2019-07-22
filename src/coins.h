@@ -42,6 +42,9 @@ public:
     Coin(CTxOut&& outIn, int nHeightIn, bool fCoinBaseIn) : out(std::move(outIn)), fCoinBase(fCoinBaseIn), nHeight(nHeightIn) {}
     Coin(const CTxOut& outIn, int nHeightIn, bool fCoinBaseIn) : out(outIn), fCoinBase(fCoinBaseIn),nHeight(nHeightIn) {}
 
+    CTxOut &GetTxOut() { return out; }
+    const CTxOut &GetTxOut() const { return out; }
+
     void Clear() {
         out.SetNull();
         fCoinBase = false;
@@ -279,6 +282,8 @@ public:
 
     //! Calculate the size of the cache (in bytes)
     size_t DynamicMemoryUsage() const;
+
+  const CTxOut &GetOutputFor(const CTxIn &input) const;
 
     /**
      * Amount of bitcoins coming in to a transaction

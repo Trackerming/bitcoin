@@ -31,6 +31,10 @@
 #include <utility>
 #include <vector>
 
+#include <spentindex.h>
+#include <addressindex.h>
+#include <timestampindex.h>
+
 class CChainState;
 class CBlockIndex;
 class CBlockTreeDB;
@@ -112,6 +116,13 @@ static const int64_t MAX_FEE_ESTIMATION_TIP_AGE = 3 * 60 * 60;
 
 static const bool DEFAULT_CHECKPOINTS_ENABLED = true;
 static const bool DEFAULT_TXINDEX = false;
+
+static const bool DEFAULT_ADDRESSINDEX = false;
+static const bool DEFAULT_TIMESTAMPINDEX = false;
+static const bool DEFAULT_SPENTINDEX = false;
+static const unsigned int DEFAULT_DB_MAX_OPEN_FILES = 1000;
+static const bool DEFAULT_DB_COMPRESSION = true;
+
 static const char* const DEFAULT_BLOCKFILTERINDEX = "0";
 static const unsigned int DEFAULT_BANSCORE_THRESHOLD = 100;
 /** Default for -persistmempool */
@@ -151,6 +162,11 @@ extern std::condition_variable g_best_block_cv;
 extern uint256 g_best_block;
 extern std::atomic_bool fImporting;
 extern std::atomic_bool fReindex;
+
+extern bool fAddressIndex;
+extern bool fSpentIndex;
+extern bool fTimestampIndex;
+
 extern int nScriptCheckThreads;
 extern bool fRequireStandard;
 extern bool fCheckBlockIndex;
@@ -362,6 +378,13 @@ public:
     ScriptError GetScriptError() const { return error; }
 };
 
+bool GetTimestampIndex(const unsigned int &high, const unsigned int &low, const bool fActiveOnly, std::vector<std::pair<uint256, unsigned int>>&hashes);
+bool GetSpentIndex(CSpentIndexKey &key, CSpentIndexValue &value);
+bool HasOnchainActive(const uint256 &hash);
+bool GetAddressIndex(uint160 addressHash, int type, std::vector<std::pair<CAddressIndexKey, CAmount>> &addressIndex, int start =0, int end = 0);
+bool GetAddressUnspent(uint160 addressHash, int type, std::vector<std::pair<CAddressUnspentKey, CAddressUnspentValue>> &unspentOutputs);
+
+
 /** Initializes the script-execution cache */
 void InitScriptExecutionCache();
 
@@ -551,7 +574,7 @@ public:
     bool AcceptBlock(const std::shared_ptr<const CBlock>& pblock, CValidationState& state, const CChainParams& chainparams, CBlockIndex** ppindex, bool fRequested, const FlatFilePos* dbp, bool* fNewBlock) EXCLUSIVE_LOCKS_REQUIRED(cs_main);
 
     // Block (dis)connection on a given view:
-    DisconnectResult DisconnectBlock(const CBlock& block, const CBlockIndex* pindex, CCoinsViewCache& view);
+    DisconnectResult DisconnectBlock(const CBlock& block, const CBlockIndex* pindex, CCoinsViewCache& view, bool fJustCheck = false);
     bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pindex,
                       CCoinsViewCache& view, const CChainParams& chainparams, bool fJustCheck = false) EXCLUSIVE_LOCKS_REQUIRED(cs_main);
 

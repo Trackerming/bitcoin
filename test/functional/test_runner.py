@@ -74,6 +74,10 @@ EXTENDED_SCRIPTS = [
 ]
 
 BASE_SCRIPTS = [
+    'feature_addressindex.py',
+    'feature_spentindex.py',
+    'feature_txindex.py',
+    'feature_timestampindex.py',
     # Scripts that are run by the travis build process.
     # Longest test should go first, to favor running tests in parallel
     'feature_fee_estimation.py',
